@@ -52,6 +52,7 @@ module.exports = class Configuration
   # A list of option names accessible on `Configuration` instances.
   @optionNames: [
     "bin", "dstPort", "httpPort", "dnsPort", "timeout", "workers",
+    "mDnsPort", "mDnsAddress", "mDnsDomain", "mDnsHost",
     "domains", "extDomains", "hostRoot", "logRoot", "rvmPath"
   ]
 
@@ -78,6 +79,21 @@ module.exports = class Configuration
     # `POW_DNS_PORT`: the UDP port Pow listens on for incoming DNS
     # queries. Defaults to `20560`.
     @dnsPort    = env.POW_DNS_PORT    ? 20560
+
+    # `mDnsPort`: the UDP port Pow listens on for incoming DNS
+    # queries. Defaults to `5353`.
+    @mDnsPort  = env.POW_MDNS_PORT    ? 5353
+
+    # `mDnsAddress`: the address Pow listens on for incoming mDNS queries.
+    # Defaults to `224.0.0.251`.
+    @mDnsAddress = env.POW_MDNS_ADDRESS ? "224.0.0.251"
+
+    # `mDnsDomain`: the mDNS domain name. Defaults to `local`.
+    @mDnsDomain = env.POW_MDNS_DOMAIN ? 'local'
+
+    # `mDnsHost`: the mDNS hostname portion responded to.
+    # Defaults to system hostname (looked up later).
+    @mDnsHost   = env.POW_MDNS_HOST   ? null
 
     # `POW_TIMEOUT`: how long (in seconds) to leave inactive Rack
     # applications running before they're killed. Defaults to 15
@@ -118,12 +134,20 @@ module.exports = class Configuration
     # to `~/.rvm/scripts/rvm`.
     @rvmPath    = env.POW_RVM_PATH    ? path.join process.env.HOME, ".rvm/scripts/rvm"
 
-    # ---
-    # Precompile regular expressions for matching domain names to be
-    # served by the DNS server and hosts to be served by the HTTP
-    # server.
+    @compileDomainPatterns()
+
+  # Compile regular expressions for matching domain names to be
+  # served by the DNS server and hosts to be served by the HTTP
+  # server.
+  compileDomainPatterns: ->
     @dnsDomainPattern  = compilePattern @domains
     @httpDomainPattern = compilePattern @allDomains
+
+  # Dynamically add an extra domain and recompile domain patterns.
+  addExtDomain: (domain) ->
+    @extDomains.push domain
+    @allDomains.push domain
+    @compileDomainPatterns()
 
   # Gets an object of the `Configuration` instance's options that can
   # be passed to `JSON.stringify`.
