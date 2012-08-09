@@ -52,7 +52,8 @@ module.exports = class Configuration
   # A list of option names accessible on `Configuration` instances.
   @optionNames: [
     "bin", "dstPort", "httpPort", "dnsPort", "timeout", "workers",
-    "domains", "extDomains", "hostRoot", "logRoot", "rvmPath"
+    "domains", "extDomains", "hostRoot", "logRoot", "rvmPath",
+    "mDnsPort", "mDnsAddress", "mDnsHost", "mDnsDomain"
   ]
 
   # Pass in any environment variables you'd like to override when
@@ -78,6 +79,21 @@ module.exports = class Configuration
     # `POW_DNS_PORT`: the UDP port Pow listens on for incoming DNS
     # queries. Defaults to `20560`.
     @dnsPort    = env.POW_DNS_PORT    ? 20560
+
+    # `POW_MDNS_PORT`: the UDP port Pow listens on for incoming mDNS
+    # queries. Defaults to `5353`.
+    @mDnsPort   = env.POW_MDNS_PORT   ? 5353
+
+    # `POW_MDNS_ADDRESS`: the address Pow listens on for incoming
+    # mDNS queries. Defaults to `224.0.0.251`.
+    @mDnsAddress = env.POW_MDNS_ADDRESS ? "224.0.0.251"
+
+    # `POW_MDNS_DOMAIN`: the mDNS domain name. Defaults to `local`.
+    @mDnsDomain = env.POW_MDNS_DOMAIN ? "local"
+
+    # `POW_MDNS_HOST`: the mDNS hostname portion responded to.
+    # Defaults to system hostname (looked up later).
+    @mDnsHost   = env.POW_MDNS_HOST   ? null
 
     # `POW_TIMEOUT`: how long (in seconds) to leave inactive Rack
     # applications running before they're killed. Defaults to 15
@@ -124,7 +140,13 @@ module.exports = class Configuration
     # script. Defaults to `~/.rvm/scripts/rvm`.
     @rvmPath    = env.POW_RVM_PATH    ? path.join process.env.HOME, ".rvm/scripts/rvm"
 
-    # ---
+    @precompilePatterns()
+
+  addToAllDomains: (domain) ->
+    @allDomains.push domain
+    @precompilePatterns()
+
+  precompilePatterns: ->
     # Precompile regular expressions for matching domain names to be
     # served by the DNS server and hosts to be served by the HTTP
     # server.

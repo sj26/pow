@@ -4,6 +4,7 @@
 {EventEmitter} = require "events"
 HttpServer     = require "./http_server"
 DnsServer      = require "./dns_server"
+mDnsServer     = require "./mdns_server"
 fs             = require "fs"
 path           = require "path"
 
@@ -13,6 +14,7 @@ module.exports = class Daemon extends EventEmitter
     # `HttpServer` and `DnsServer` instances are created accordingly.
     @httpServer = new HttpServer @configuration
     @dnsServer  = new DnsServer @configuration
+    @mDnsServer  = new mDnsServer @configuration
     # The daemon stops in response to `SIGINT`, `SIGTERM` and
     # `SIGQUIT` signals.
     process.on "SIGINT",  @stop
@@ -73,14 +75,17 @@ module.exports = class Daemon extends EventEmitter
       @starting = false
       try @httpServer.close()
       try @dnsServer.close()
+      try @mDnsServer.close()
       @emit "error", err
 
-    {httpPort, dnsPort} = @configuration
+    {httpPort, dnsPort, mDnsPort} = @configuration
     startServer @httpServer, httpPort, (err) =>
       if err then flunk err
       else startServer @dnsServer, dnsPort, (err) =>
         if err then flunk err
-        else pass()
+        else startServer @mDnsServer, mDnsPort, (err) =>
+          if err then flunk err
+          else pass()
 
   # Stop the daemon if it's started. This means calling `close` on
   # both servers in succession, beginning with the HTTP server, and
@@ -102,6 +107,7 @@ module.exports = class Daemon extends EventEmitter
 
     stopServer @httpServer, =>
       stopServer @dnsServer, =>
-        @stopping = false
-        @started  = false
-        @emit "stop"
+        stopServer @mDnsServer, =>
+          @stopping = false
+          @started  = false
+          @emit "stop"
